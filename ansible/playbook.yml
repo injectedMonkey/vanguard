@@ -1,0 +1,25 @@
+#!/usr/bin/env ansible-playbook
+
+- name: Fullstack machines
+  hosts: all
+
+  vars:
+    composer:
+      path: /usr/local/bin
+      self_update: true
+
+  #pre_tasks:
+    #- import_tasks: ./base-setup.yml
+
+    #- include_role:
+    #    name: injectedMonkey.nginx
+    #- include_role:
+    #    name: injectedMonkey.php-fpm
+    #- include_role:
+    #    name: injectedMonkey.composer
+    #- include_role:
+    #    name: injectedMonkey.mysql
+
+  roles:
+    #- symfony
+    - scraper

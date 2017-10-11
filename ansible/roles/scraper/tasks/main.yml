@@ -1,0 +1,67 @@
+---
+- name: add jessie-backports deb repositories
+  become: true
+  apt_repository:
+    repo: "deb http://http.debian.net/debian jessie-backports main"
+    state: present
+    filename: "jessie-backports"
+    update_cache: 'yes'
+
+- name: Update APT package manager repositories cache
+  become: true
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: install packages
+  become: true
+  apt:
+    name: "{{ item }}"
+    state: latest
+    default_release: jessie-backports
+    install_recommends: yes
+    update_cache: 'yes'
+  with_items:
+    - apt-transport-https
+    - openjdk-8-jdk
+
+- name: Add Nodesource apt key.
+  become: true
+  apt_key:
+    url: https://keyserver.ubuntu.com/pks/lookup?op=get&fingerprint=on&search=0x1655A0AB68576280
+    id: "68576280"
+    state: present
+
+- name: Add NodeSource repositories for Node.js.
+  become: true
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+    filename: node
+  with_items:
+    - "deb https://deb.nodesource.com/node_8.x {{ ansible_distribution_release }} main"
+    - "deb-src https://deb.nodesource.com/node_8.x {{ ansible_distribution_release }} main"
+
+- name: install packages
+  become: true
+  apt:
+    name: "{{ item }}"
+    state: latest
+    update_cache: 'yes'
+  with_items:
+    - build-essential
+    - xvfb
+    - nodejs
+    - phantomjs
+
+- name: install global npm packages
+  become: true
+  npm:
+    name: "{{ item }}"
+    state: latest
+    global: true
+  with_items:
+    - selenium-standalone
+
+- name: install selenium-standalone
+  command: selenium-standalone install

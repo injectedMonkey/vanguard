@@ -1,0 +1,4 @@
+- src: injectedMonkey.nginx
+- src: injectedMonkey.php-fpm
+- src: injectedMonkey.composer
+- src: injectedMonkey.mysql

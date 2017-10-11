@@ -1,0 +1,1 @@
+{"nfs":{"/home/vagrant/nfs":{"type":"nfs","guestpath":"/home/vagrant/nfs","hostpath":"/Users/imnky/projects/node-scraper","disabled":false,"__vagrantfile":true,"map_uid":501,"map_gid":20,"nfs_udp":true,"nfs_version":3,"uuid":"1411184905"}},"parallels":{"/vagrant":{"guestpath":"/vagrant","hostpath":"/Users/imnky/projects/ansible","disabled":false,"__vagrantfile":true}}}

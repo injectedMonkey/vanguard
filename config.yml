@@ -1,0 +1,47 @@
+---
+playbook: ./playbook.yml
+playbook_local: ./playbook-local.yml
+output: false # -v -vv -vvv false
+run_local: false # run local playbook
+machines:
+  machine1:
+    name: php-full
+    #box: parallels/ubuntu-14.04
+    #box: parallels/ubuntu-16.04
+    box: bento/debian-8.7
+    hostname: php.dev.box
+    cpus: 1
+    memory: 512
+    ip: 10.0.0.10
+    forwarding:
+      http:
+        guest: 80
+        host: 8080
+      https:
+        guest: 443
+        host: 8443
+    host_vars:
+      mysql:
+        packages:
+          - mariadb-server
+          - mariadb-client
+          - python-mysqldb
+        charset: utf8mb4
+        port: 3306
+        users:
+          - { name: symfony, password: symfony, privileges: '*.*:ALL' }
+      nginx:
+        user: www-data
+        group: www-data
+        sites:
+          - host_name: symfony.dev.box
+            document_root: /var/www/symfony.dev.box
+            block_template: symfony
+            environment:
+              APP_ENV: development
+    host_groups:
+      - dev
+      - webserver
+      - database
+      - application
+      - php

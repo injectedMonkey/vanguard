@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+
+- name: playbook for all machines
+  gather_facts: no
+  hosts: all
+  tasks:
+    - debug:
+        msg: "System {{ inventory_hostname }}"
+    - debug:
+        msg: "{{ inventory_hostname }}: {{ php }}"
