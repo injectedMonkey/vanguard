@@ -1,0 +1,51 @@
+[client]
+default-character-set = {{ mysql.charset }}
+port = {{ mysql.port }}
+socket = {{ mysql.socket }}
+
+
+[mysqld_safe]
+socket = {{ mysql.socket }}
+nice = {{ mysql.ini.mysqld_safe.nice }}
+
+
+[mysqld]
+#user = {{ mysql.user }}
+character-set-server =  {{ mysql.charset }}
+datadir = {{ mysql.datadir }}
+log_error = {{ mysql.log_error }}
+pid-file = {{ mysql.pid_file }}
+port = {{ mysql.port }}
+socket = {{ mysql.socket }}
+
+innodb_file_per_table = {{ mysql.ini.mysqld.innodb_file_per_table }}
+innodb_file_format = {{ mysql.ini.mysqld.innodb_file_format }}
+basedir = {{ mysql.ini.mysqld.basedir }}
+tmpdir = {{ mysql.ini.mysqld.tmpdir }}
+lc-messages-dir	= {{ mysql.ini.mysqld.lc_messages_dir }}
+{% if mysql.ini.mysqld.skip_external_locking %}
+skip-external-locking
+{% endif %}
+key_buffer = {{ mysql.ini.mysqld.key_buffer }}
+max_allowed_packet = {{ mysql.ini.mysqld.max_allowed_packet }}
+thread_stack = {{ mysql.ini.mysqld.thread_stack }}
+thread_cache_size = {{ mysql.ini.mysqld.thread_cache_size }}
+myisam-recover = {{ mysql.ini.mysqld.myisam_recover }}
+query_cache_limit	= {{ mysql.ini.mysqld.query_cache_limit }}
+query_cache_size = {{ mysql.ini.mysqld.query_cache_size }}
+expire_logs_days = {{ mysql.ini.mysqld.expire_logs_days }}
+max_binlog_size = {{ mysql.ini.mysqld.max_binlog_size }}
+
+
+[mysqldump]
+{% if mysql.ini.mysqldump.quick %}
+quick
+{% endif %}
+{% if mysql.ini.mysqldump.quote_names %}
+quote-names
+{% endif %}
+max_allowed_packet = {{ mysql.ini.mysqldump.max_allowed_packet }}
+
+
+[isamchk]
+key_buffer = {{ mysql.ini.isamchk.key_buffer }}

@@ -1,0 +1,37 @@
+---
+php:
+  webserver:
+    daemon: "apache2"
+  packages:
+    - php{{ php_version }}
+    - php{{ php_version }}-cli
+    - php{{ php_version }}-common
+    - php{{ php_version }}-dev
+    - php{{ php_version }}-fpm
+    - php{{ php_version }}-gd
+    - php{{ php_version }}-imap
+    - php{{ php_version }}-ldap
+    - php{{ php_version }}-mbstring
+    - php{{ php_version }}-opcache
+    - php{{ php_version }}-mysql
+    - php{{ php_version }}-pdo
+    - php{{ php_version }}-apcu
+    - php{{ php_version }}-xml
+    - php{{ php_version }}-xmlrpc
+    - php{{ php_version }}-soap
+    - php{{ php_version }}-bcmath
+    - php-pear
+  ini_path:
+    - /etc/php/{{ php_version }}/fpm
+    - /etc/php/{{ php_version }}/apache2
+    - /etc/php/{{ php_version }}/cli
+  fpm:
+    daemon: php{{ php_version }}-fpm
+    conf_path: /etc/php/{{ php_version }}/fpm
+    pool_conf_path: "/etc/php/{{ php_version }}/fpm/pool.d/www.conf"
+    pool_user: www-data
+    pool_group: www-data
+  apcu:
+    ini_path: /etc/php/{{ php_version }}/mods-available/apcu.ini
+  opcache:
+    ini_path: /etc/php/{{ php_version }}/mods-available/opcache.ini

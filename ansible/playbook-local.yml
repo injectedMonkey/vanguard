@@ -1,7 +1,7 @@
 #!/usr/bin/env ansible-playbook
 
 - name: Actions on host system
-  hosts: 127.0.0.1
+  hosts: localhost
   connection: local
   tasks:
     - copy:

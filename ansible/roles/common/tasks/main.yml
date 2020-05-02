@@ -1,0 +1,11 @@
+---
+- include: tasks-debian.yml
+  when: ansible_os_family == 'Debian'
+
+- include: tasks-redhat.yml
+  when: ansible_os_family == "RedHat"
+
+- name: create download dir
+  file:
+    path: ~/tmp
+    state: directory

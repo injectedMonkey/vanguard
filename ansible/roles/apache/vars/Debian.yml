@@ -1,0 +1,4 @@
+apache:
+  daemon: apache2
+  packages:
+    - apache2

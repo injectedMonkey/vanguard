@@ -1,0 +1,166 @@
+---
+- name: include os specific variables.
+  include_vars: "{{ ansible_os_family}}.yml"
+
+- name: add mariadb deb repositories key
+  apt_key: id={{ mysql.mariadb.key_id[ansible_distribution_release|lower] }} keyserver=keyserver.ubuntu.com state=present
+  when: ansible_os_family == 'Debian' and mysql.daemon == 'mariadb'
+
+- name: add myriadb deb repositories
+  apt_repository:
+    repo: 'deb {{mysql.mariadb.deb_repo}}{{ mysql.version }}/{{ ansible_distribution|lower }}/ {{ ansible_distribution_release|lower }} main'
+    state: present
+    filename: 'myriadb'
+  when: ansible_os_family == 'Debian' and mysql.daemon == 'mariadb'
+
+- name: Add mariadb yum repository
+  yum_repository:
+    name: mariadb
+    description: mariadb
+    baseurl: http://yum.mariadb.org/{{ mysql.version }}/centos7-amd64
+    gpgkey: https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+    gpgcheck: 1
+    enabled: 1
+  when: ansible_os_family == 'RedHat' and mysql.daemon == 'mariadb'
+
+- name: add mysql deb repositories key
+  apt_key: url=http://repo.mysql.com/RPM-GPG-KEY-mysql state=present
+  when: ansible_os_family == 'Debian' and mysql.daemon == 'mysql'
+
+- name: add mysql deb repositories
+  apt_repository:
+    repo: 'deb http://repo.mysql.com/apt/{{ ansible_distribution|lower }}/ {{ ansible_distribution_release|lower }} mysql-{{ mysql.version }}'
+    state: present
+    filename: 'mysql'
+  ignore_errors: yes
+  when: ansible_os_family == 'Debian' and mysql.daemon == 'mysql' and mysql.update_repo
+
+- name: Install the MySQL repo.
+  yum:
+    name: http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+    state: present
+  when: ansible_os_family == 'RedHat' and mysql.daemon == 'mysql'
+
+- name: install packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ mysql.packages[mysql.daemon] }}"
+  notify:
+    - restart mysql
+  when: ansible_os_family == 'Debian'
+
+- name: install packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ mysql.packages[mysql.daemon] }}"
+  notify:
+    - restart mysql
+  when: ansible_os_family == 'RedHat'
+
+- meta: flush_handlers
+
+- name: wait for mysql
+  wait_for:
+    port: "{{ mysql.port }}"
+
+######
+- stat:
+    path: /root/.my.cnf
+  register: my_cnf
+
+- shell: sed -e 's/mysql/client/g' /root/.my.cnf | tee -a /root/.my.cnf
+  when: my_cnf.stat.exists
+
+#######
+
+- name: set root password
+#  become: false
+  mysql_user:
+    name: root
+    password: "{{ mysql.root_password }}"
+    host: "{{ item }}"
+    state: present
+    config_file: /root/.my.cnf
+    check_implicit_admin: true
+  with_items:
+    - '::1'
+    - '127.0.0.1'
+    - 'localhost'
+
+- name: copy .my.cnf file for root
+  template:
+    src: user-my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: 0600
+  notify:
+    - restart mysql
+##  when: not my_cnf.stat.exists
+#
+- name: copy .my.cnf in user home
+  template:
+    src: user-my.cnf.j2
+    dest: /home/{{ ansible_user }}/.my.cnf
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: 0600
+#
+#  ignore_errors: true
+#
+##- meta: flush_handlers
+##
+##- stat:
+##    path: /root/.my.cnf
+##  become_method: sudo
+##  register: my_cnf
+##
+##- name: wait for mysql
+##  wait_for:
+##    port: "{{ mysql.port }}"
+##
+##
+- stat:
+    path: "{{ mysql.config_path }}/my.cnf"
+  register: my_cnf
+
+- name: configure my.cnf
+  template:
+    src: config-my.cnf.j2
+    dest: "{{ mysql.config_path }}/my.cnf"
+  notify:
+    - restart mysql
+#  when: not my_cnf.stat.exists
+
+- name: reload privilege tables
+  command: 'mysql -ne "{{ item }}"'
+  with_items:
+    - FLUSH PRIVILEGES
+  changed_when: false
+
+- name: create users
+  mysql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    priv: "{{ item.privileges | default('*.*:USAGE') }}"
+    state: present
+  with_items: "{{ mysql.users }}"
+
+- name: remove anonymous users
+  become_method: sudo
+  mysql_user:
+    name: ''
+    host_all: yes
+    state: absent
+
+- name: create databases
+  mysql_db:
+    name: "{{ item.name }}"
+    encoding: "{{ item.encoding }}"
+    collation: "{{ item.collation }}"
+    state: present
+  with_items: "{{ mysql.databases }}"
+
+- meta: flush_handlers

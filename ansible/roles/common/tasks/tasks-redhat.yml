@@ -1,0 +1,29 @@
+---
+- name: update installed packages and repositories
+  become: true
+  shell: "yum -y update"
+  args:
+    warn: false
+
+- name: upgrade installed packages
+  become: true
+  yum:
+    name: '*'
+    update_cache: yes
+    state: latest
+
+- name: install base packages
+  become: true
+  yum:
+    name: '{{ item }}'
+    state: latest
+  with_items:
+    "{{ common.packages | default([]) }}"
+
+- name: install redhat packages
+  become: true
+  yum:
+    name: '{{ item }}'
+    state: latest
+  with_items:
+    "{{ common.redhat | default([]) }}"

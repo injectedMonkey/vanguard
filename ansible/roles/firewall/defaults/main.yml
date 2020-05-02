@@ -1,0 +1,9 @@
+---
+firewall:
+  # @todo disable firewall until issue has been fixed https://github.com/ansible/ansible/pull/37603
+#  state: stopped
+  service: []
+#    - {name: https, permanent: true, state: enabled}
+#    - {name: http, permanent: true, state: enabled}
+  port: []
+#    - {port: 8080, permanent: true, state: enabled}

@@ -1,0 +1,8 @@
+---
+nodejs:
+  version: 9.x
+  packages: []
+#    - grunt
+#    - {name: phantomjs, unsafe_perm: true}
+#    # - slimerjs # needs firefox installation
+#    - casperjs

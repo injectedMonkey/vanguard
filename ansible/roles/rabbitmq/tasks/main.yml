@@ -1,0 +1,105 @@
+---
+- name: Check rabbitmq-server already runninig
+  shell: ps aux | grep rabbitmq-server | grep -v grep
+  ignore_errors: yes
+  changed_when: false
+  register: service_rabbitmq_status
+
+- name: import erlang rpm key
+  apt_key:
+    url: "https://packages.erlang-solutions.com/debian/erlang_solutions.asc"
+  when: ansible_os_family == 'Debian'
+
+# @todo repo contains in debian 9 erlang/OTP 19.2. rabbitmq requires minimum version 19.3
+- name: add erlang solutions repository
+  apt_repository:
+    repo: "deb https://packages.erlang-solutions.com/{{ ansible_distribution | lower }} {{ ansible_distribution_release | lower }} contrib"
+  when: ansible_os_family == 'Debian'
+
+- name: Install erlang
+  apt:
+    name: erlang
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: import rabbitmq rpm key
+  apt_key:
+    url: https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
+  when: ansible_os_family == 'Debian'
+
+- name: download rabbitmq package
+  get_url:
+    url: "https://github.com/rabbitmq/rabbitmq-server/releases/download/{% if rabbitmq.version is version_compare('3.7', '<=') %}rabbitmq_v{{ rabbitmq.version.split('-')[0] | regex_replace('\\.', '_') }}{% else %}v{{ rabbitmq.version.split('-')[0] }}{% endif %}/rabbitmq-server_{{ rabbitmq.version }}_all.deb"
+    dest: "~/tmp/rabbitmq-server-{{ rabbitmq.version }}.deb"
+  when: ansible_os_family == 'Debian'
+
+- name: install rabbitmq
+  apt:
+    deb: "~/tmp/rabbitmq-server-{{ rabbitmq.version }}.deb"
+  when: ansible_os_family == 'Debian' and service_rabbitmq_status.rc != 0
+
+- name: import erlang rpm key
+  rpm_key:
+    key: https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
+  when: ansible_os_family == 'RedHat'
+
+- name: add erlang solutions repository
+  yum_repository:
+    name: erlang-solutions
+    description: "{{ ansible_distribution }} $releasever - $basearch - Erlang Solutions"
+    baseurl: https://packages.erlang-solutions.com/rpm/centos/$releasever/$basearch
+    gpgcheck: true
+    gpgkey: https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
+  when: ansible_os_family == 'RedHat'
+
+- name: install erlang
+  yum:
+    name: erlang
+  when: ansible_os_family == 'RedHat'
+
+- name: import rabbitmq rpm key
+  rpm_key:
+    key: https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
+  when: ansible_os_family == 'RedHat'
+
+- name: download rabbitmq package
+  get_url:
+    url: "https://github.com/rabbitmq/rabbitmq-server/releases/download/{% if rabbitmq.version is version_compare('3.7', '<=') %}rabbitmq_v{{ rabbitmq.version.split('-')[0] | regex_replace('\\.', '_') }}{% else %}v{{ rabbitmq.version.split('-')[0] }}{% endif %}/rabbitmq-server-{{ rabbitmq.version }}{% if rabbitmq.version is version_compare('3.6.6', '>=') %}.el{{ ansible_distribution_major_version }}{% endif %}.noarch.rpm"
+    dest: "/usr/tmp/rabbitmq-server-{{ rabbitmq.version }}.rpm"
+  when: ansible_os_family == 'RedHat'
+
+- name: install rabbitmq
+  become_user: root
+  yum:
+    name: "/usr/tmp/rabbitmq-server-{{ rabbitmq.version }}.rpm"
+  when: ansible_os_family == 'RedHat'
+
+- name: ensure rabbitmq service is running
+  service:
+    name: rabbitmq-server
+    state: started
+    enabled: yes
+
+- name: enabling plugins
+  rabbitmq_plugin:
+    names: "{{ item }}"
+    state: enabled
+  with_items: "{{ rabbitmq.plugins }}"
+
+- name: add rabbitmq users
+  rabbitmq_user:
+    user: "{{ item.user }}"
+    password: "{{ item.password }}"
+    vhost: "{{ item.vhost | default('/') }}"
+    configure_priv: "{{ item.configure_priv | default('.*') }}"
+    read_priv: "{{ item.read_priv | default('.*') }}"
+    write_priv: "{{ item.write_priv | default('.*') }}"
+    tags: "{{ item.tags | default('') }}"
+    state: present
+  with_items: "{{ rabbitmq.users }}"
+
+- name: remove rabbitmq users
+  rabbitmq_user:
+    user: "{{ item }}"
+    state: absent
+  with_items: "{{ rabbitmq.users_absent }}"

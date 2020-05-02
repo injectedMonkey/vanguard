@@ -1,0 +1,13 @@
+---
+- name: restart webserver
+  service:
+    name: "{{ php.webserver.daemon }}"
+    state: restarted
+  notify: restart php-fpm
+  when: php.webserver.enabled
+
+- name: restart php-fpm
+  service:
+    name: "{{ php_fpm_daemon }}"
+    state: restarted
+  when: php.fpm.enabled

@@ -1,0 +1,28 @@
+---
+- name: update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: install aptitude
+  apt:
+    name: aptitude
+
+- name: upgrade installed packages
+  apt:
+    upgrade: safe
+
+- name: install base packages
+  apt:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    "{{ common.packages | default([]) }}"
+
+- name: install debian packages
+  apt:
+    name: '{{ item }}'
+    state: present
+  with_items:
+    "{{ common.debian | default([]) }}"
+

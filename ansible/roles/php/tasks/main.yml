@@ -1,0 +1,125 @@
+---
+- set_fact:
+    php_version: "{{ php.version }}"
+
+- name: include os specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: install epel repo
+  yum:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: import epel gpg key
+  rpm_key:
+    key: /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: install remi repo
+  yum:
+    name: http://rpms.famillecollet.com/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: import remi gpg key
+  rpm_key:
+    key: http://rpms.remirepo.net/RPM-GPG-KEY-remi
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: ensure php packages are installed
+  package:
+    name: "{{ item }}"
+    state: present
+    enablerepo: "remi-php{{ php.version | regex_replace('\\.', '')}}"
+  with_items: "{{ php.packages }}"
+  register: php_package_install
+  when: ansible_os_family == 'RedHat'
+  notify: restart webserver
+
+- name: add apt key
+  apt_key:
+    url: "{{ item }}"
+    state: present
+  with_items:
+    - https://packages.sury.org/php/apt.gpg
+    - https://www.dotdeb.org/dotdeb.gpg
+  when: ansible_distribution == 'Debian'
+
+- name: add apt repositories
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items:
+    - "deb http://packages.dotdeb.org {{ ansible_distribution_release | lower }} all"
+    - "deb https://packages.sury.org/php/ {{ ansible_distribution_release | lower }} main"
+  when: ansible_distribution == 'Debian'
+
+- name: add ppa repositories
+  apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items:
+    - "ppa:ondrej/php"
+  when: ansible_distribution == 'Ubuntu'
+
+- name: ensure php packages are installed
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ php.packages }}"
+  register: php_package_install
+  when: ansible_os_family == 'Debian'
+  notify: restart webserver
+
+- name: configure php
+  ini_file:
+    path: "{{ item.0 }}/php.ini"
+    section: PHP
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.value }}"
+    mode: 0644
+    backup: yes
+  loop: "{{ lookup('nested', php.ini_path, lookup('dict', php.ini)) }}"
+#  when: php_package_install.changed
+  notify: restart webserver
+
+- name: configure opcache
+  ini_file:
+    path: "{{ php.opcache.ini_path }}"
+    section: null
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    mode: 0644
+    backup: yes
+  with_dict: "{{ php.opcache.ini }}"
+  when: php_package_install.changed
+  notify: restart webserver
+
+- name: configure apcu
+  ini_file:
+    path: "{{ php.apcu.ini_path }}"
+    section: null
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    mode: 0644
+    backup: yes
+  with_dict: "{{ php.apcu.ini }}"
+  when: php_package_install.changed
+  notify: restart webserver
+
+- name: check for multiple versions
+  shell: update-alternatives --config php
+  failed_when: false
+  register: php_multiple_versions
+
+- name: set alternative to correct version
+  alternatives:
+    name: php
+    path: /usr/bin/php{{ php_version }}
+  when: php_multiple_versions.rc == 0
+
+#- include: configure-fpm.yml
+#  static: no

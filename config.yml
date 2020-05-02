@@ -1,47 +1,236 @@
 ---
+###################
+## Tested boxes:
+##   Debian 8:      generic/debian8
+##   Debian 9:      generic/debian9
+##   Ubuntu 16.04:  generic/ubuntu1604
+##   CentOS 7:      generic/centos7 [ipv6 _MUST_ be enabled]
+###################
 playbook: ./playbook.yml
 playbook_local: ./playbook-local.yml
+provider: vmware
+#output: -vvv # -v -vv -vvv false
 output: false # -v -vv -vvv false
 run_local: false # run local playbook
 machines:
-  machine1:
-    name: php-full
-    #box: parallels/ubuntu-14.04
-    #box: parallels/ubuntu-16.04
-    box: bento/debian-8.7
-    hostname: php.dev.box
-    cpus: 1
-    memory: 512
+  debian8:
+    name: debian8
+    box: geerlingguy/debian8
+#    box: generic/debian8
+    hostname: debian8.dev.box
+    cpus: 2
+    memory: 2048
     ip: 10.0.0.10
     forwarding:
       http:
         guest: 80
-        host: 8080
+        host: 8081
+      https:
+        guest: 443
+        host: 8441
+    shared_folders:
+      shopware:
+        owner: www-data
+        group: www-data
+        source: ~/workspace/projects/shopware
+        target: /var/www/shopware
+        sync_type: nfs
+      soap-service:
+        source: ~/workspace/projects/service-soap
+        target: /var/www/service-soap
+        sync_type: nfs
+      mail-service:
+        source: ~/workspace/projects/enigami-transaction-mailer
+        target: /var/www/enigami-transaction-mailer
+        sync_type: nfs
+      reporting-service:
+        source: ~/workspace/projects/service-reporting
+        target: /var/www/service-reporting
+        sync_type: nfs
+      scraper-aystar:
+        source: ~/workspace/projects/deliverer-ayyildiz-aystar
+        target: /var/www/scraper-aystar
+        sync_type: nfs
+    host_vars:
+      apache:
+        user: www-data
+        group: www-data
+        mods:
+          - {name: mpm_event, state: absent }
+          - {name: mpm_prefork, state: present }
+          - rewrite
+          - ssl
+        hosts:
+          - host_name: shopware.dev.box
+            document_root: /var/www/shopware/
+            log_level: debug
+            vhost_template: shopware
+      php:
+        webserver:
+          enabled: true
+        version: 5.6
+        ini:
+          expose_php: "On"
+          memory_limit: "1024M"
+          max_execution_time: "60"
+          max_input_time: "60"
+          max_input_vars: "1000"
+          realpath_cache_size: "32K"
+          file_uploads: "On"
+          upload_max_filesize: "10M"
+          max_file_uploads: "20"
+          post_max_size: "32M"
+          date_timezone: "Europe/Berlin"
+          allow_url_fopen: "On"
+          sendmail_path: "/usr/sbin/sendmail -t -i"
+          output_buffering: "4096"
+          short_open_tag: "Off"
+          disable_functions: []
+          session_cookie_lifetime: 0
+          session_gc_probability: 1
+          session_gc_divisor: 1000
+          session_gc_maxlifetime: 1440
+          session_save_handler: files
+          session_save_path: ''
+          error_reporting: "E_ALL & ~E_DEPRECATED & ~E_STRICT"
+          display_errors: "Off"
+          display_startup_errors: "Off"
+        fpm:
+          # @todo php-fpm not is not implemented or tested
+          enabled: false
+          listen: "127.0.0.1:9000"
+          listen_allowed_clients: "127.0.0.1"
+          pm_max_children: 50
+          pm_start_servers: 5
+          pm_min_spare_servers: 5
+          pm_max_spare_servers: 5
+        opcache:
+          ini:
+            zend_extension: "opcache.so"
+            enable: "1"
+            enable_cli: "0"
+            memory_consumption: "96"
+            interned_strings_buffer: "16"
+            max_accelerated_files: "4096"
+            max_wasted_percentage: "5"
+            validate_timestamps: "1"
+            revalidate_path: "0"
+            revalidate_freq: "2"
+            max_file_size: "0"
+            blacklist_filename: ""
+            load_comments: "1"
+        apcu:
+          ini:
+            enabled: true
+            shm_size: "96M"
+            enable_cli: "0"
+      mysql:
+        daemon: mysql
+        version: 5.5
+        update_repo: false
+        charset: utf8mb4
+        port: 3306
+        root_password: root
+        users:
+          - { name: dbuser, password: 123, privileges: '*.*:ALL' }
+        databases:
+          - { name: shopware, encoding: utf8mb4, collation: utf8mb4_unicode_ci }
+      nodejs:
+        version: 9.x
+        packages:
+          - grunt
+          - {name: phantomjs, unsafe_perm: true}
+          - casperjs
+      openjdk:
+        version: 8
+      pip:
+        packages:
+          - virtualenv
+      rabbitmq:
+        version: 3.7.3-1
+        plugins:
+          - rabbitmq_management
+          - rabbitmq_shovel
+          - rabbitmq_shovel_management
+        users:
+          - {user: admin, password: admin, tags: administrator}
+          - {user: worker, password: worker}
+          - {user: shopware, password: shopware}
+        users_absent:
+          - guest
+    host_groups:
+      - all
+  debian9:
+    name: debian9
+    box: generic/debian9
+    box_version: 1.4.12
+    hostname: debian9.dev.box
+    cpus: 1
+    memory: 512
+    ip: 10.0.0.20
+    forwarding:
+      http:
+        guest: 80
+        host: 8082
+      https:
+        guest: 443
+        host: 8442
+    host_vars:
+      mysql:
+        version: 5.6
+        deamon: mysql
+#        version: 10.2
+#        daemon: mariadb
+      open-jdk:
+        version: 8
+    host_groups:
+      - all
+  ubuntu:
+    name: ubuntu
+    box: generic/ubuntu1604
+    box_version: 1.4.12
+    hostname: ubuntu.dev.box
+    cpus: 1
+    memory: 512
+    ip: 10.0.0.40
+    forwarding:
+      http:
+        guest: 80
+        host: 8083
       https:
         guest: 443
         host: 8443
     host_vars:
       mysql:
-        packages:
-          - mariadb-server
-          - mariadb-client
-          - python-mysqldb
-        charset: utf8mb4
-        port: 3306
-        users:
-          - { name: symfony, password: symfony, privileges: '*.*:ALL' }
-      nginx:
-        user: www-data
-        group: www-data
-        sites:
-          - host_name: symfony.dev.box
-            document_root: /var/www/symfony.dev.box
-            block_template: symfony
-            environment:
-              APP_ENV: development
+        version: 5.6
+        deamon: mysql
+#        version: 10.2
+#        daemon: mariadb
+      open-jdk:
+        version: 7
     host_groups:
-      - dev
-      - webserver
-      - database
-      - application
-      - php
+      - all
+  centos:
+    name: centos
+    box: generic/centos7
+    hostname: centos.dev.box
+    cpus: 1
+    memory: 512
+    ip: 10.0.0.30
+    forwarding:
+      http:
+        guest: 80
+        host: 8084
+      https:
+        guest: 443
+        host: 8444
+    host_vars:
+      mysql:
+#        version: 5.6
+#        deamon: mysql
+        version: 10.2
+        daemon: mariadb
+      open-jdk:
+        version: 8
+    host_groups:
+      - all

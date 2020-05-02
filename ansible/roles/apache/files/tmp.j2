@@ -1,0 +1,31 @@
+<VirtualHost *:443>
+  ServerName shopware.dev.box
+
+  ## Vhost docroot
+  DocumentRoot "/var/www/shopware/"
+
+  ## Directories, there should at least be a declaration for /var/www/shopware/
+
+  <Directory "/var/www/shopware/">
+    Options Indexes FollowSymlinks MultiViews
+    AllowOverride All
+    Require all granted
+    DirectoryIndex index.html index.php app.dev shopware.php
+
+  </Directory>
+
+
+  ## Logging
+  ErrorLog "/var/log/apache2/shopware_error_ssl.log"
+  ServerSignature Off
+  CustomLog "/var/log/apache2/shopware_access_ssl.log" combined
+  SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+  ## SSL directives
+  SSLEngine on
+  SSLCertificateFile    /etc/ssl/private/ubuntu.dev.box-selfsigned.crt
+  SSLCertificateKeyFile /etc/ssl/private/ubuntu.dev.box-selfsigned.key
+
+  ## Custom fragment
+
+</VirtualHost>

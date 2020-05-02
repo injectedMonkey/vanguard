@@ -1,0 +1,24 @@
+---
+common:
+  packages:
+    - cowsay          # it's probably important
+    - git-core
+    - git
+    - ca-certificates
+    - bzip2
+    - unzip
+    - ntpdate
+    - nano
+    - htop
+    - fontconfig      # phantomjs
+#    - mytop
+  debian:
+    - build-essential
+    - lsb-release
+    - apt-transport-https
+  redhat:
+    - redhat-lsb
+    - gcc             # build-essential
+    - gcc-c++         # build-essential
+    - make            # build-essential
+    - openssl-devel   # build-essential

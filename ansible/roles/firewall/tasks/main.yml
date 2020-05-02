@@ -1,0 +1,37 @@
+---
+- name: disable ufw
+  package:
+      name: ufw
+      state: absent
+
+- name: install firewalld
+  package:
+      name: firewalld
+      state: present
+
+- name: start firewalld
+  service:
+    name: firewalld
+    # @todo disable firewall until issue has been fixed: https://github.com/ansible/ansible/pull/37603
+    state: stopped #"{{ firewall.state }}"
+    enabled: true
+
+- name: configure services in firewall
+  firewalld:
+    service: "{{ item.name }}"
+    permanent: "{{ item.permanent }}"
+    state: "{{ item.state }}"
+  with_items: "{{ firewall.service | list }}"
+  # @todo disable firewall until issue has been fixed: https://github.com/ansible/ansible/pull/37603
+#  when: firewall.state == 'started'
+  when: firewall.state is defined
+
+- name: configure ports in firewall
+  firewalld:
+    port: "{{ item.port }}"
+    permanent: "{{ item.permanent }}"
+    state: "{{ item.state }}"
+  with_items: "{{ firewall.port | list }}"
+  # @todo disable firewall until issue has been fixed: https://github.com/ansible/ansible/pull/37603
+#  when: firewall.state == 'started'
+  when: firewall.state is defined

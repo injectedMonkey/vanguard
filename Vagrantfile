@@ -7,11 +7,13 @@ require "yaml"
 require "json"
 require "#{dir}/vagrant/ruby/deep_merge"
 require "#{dir}/vagrant/ruby/inventory_path"
+require "#{dir}/vagrant/ruby/hostupdater"
+
 
 # install required plugins if necessary
 if ARGV[0] == 'up'
-    # add required plugins here
-    required_plugins = %w( vagrant-bindfs )
+    plugins = YAML.load_file "./vagrant/plugins.yml"
+    required_plugins = plugins["plugins"]
     missing_plugins = []
     required_plugins.each do |plugin|
         missing_plugins.push(plugin) unless Vagrant.has_plugin? plugin
@@ -31,51 +33,46 @@ config = YAML.load_file "#{dir}/config.yml"
 machines = config["machines"]
 
 Vagrant.configure("2") do |vagrant|
-  # Iterate over multiple machines if configured
+#   vagrant.hostsupdater.aliases = getWebHosts(machines)
   (1..machines.count).each do |machine_id|
     settings = machines[machines.keys[machine_id -1]]
+
     # These values are the default options
-      vagrant.bindfs.default_options = {
-        force_user:   'vagrant',
-        force_group:  'vagrant',
-        perms:        'u=rwX:g=rD:o=rD',
-      }
+    vagrant.bindfs.default_options = {
+      force_user:   'vagrant',
+      force_group:  'vagrant',
+      perms:        'u=rwX:g=rD:o=rD',
+    }
 
-    if machines.count == 1
-      vagrant.vm.synced_folder "/Users/imnky/projects/node-scraper", "/home/vagrant/nfs", type: :nfs
-      #vagrant.vm.synced_folder "/Users/imnky/projects/symfony-test-project", "/vagrant-nfs", type: :nfs
-
-      vagrant.bindfs.bind_folder "/home/vagrant/nfs", "/var/www/node-scraper"
-      #vagrant.bindfs.bind_folder "/vagrant-nfs", "/var/www/project", o:"nonempty", after: :provision
-    end
-
-    # Setting up base vagrant for vm
-    # @todo generic provisioning for all providers
-    vagrant.vm.provider :parallels do |parallels|
-      parallels.update_guest_tools = false
-      parallels.memory = settings["memory"]
-      parallels.cpus = settings["cpus"]
-    end
-
-    # Setting up the guest system
-    vagrant.vm.define settings["hostname"] do |machine|
-      machine.vm.box = settings["box"]
-      machine.vm.hostname = settings["hostname"]
-      machine.vm.network "private_network", ip: settings["ip"]
-
-      if settings.has_key?("forwarding")
-        settings["forwarding"].each do |name, port|
-          machine.vm.network "forwarded_port", guest: port["guest"], host: port["host"]
+    if config['provider'] == "parallels"
+        vagrant.vm.provider :parallels do |parallels|
+          parallels.update_guest_tools = false
+          parallels.memory = settings["memory"]
+          parallels.cpus = settings["cpus"]
         end
-      end
     end
 
-    # Create host_vars
+    if config['provider'] == "virtualbox"
+        vagrant.vm.provider :virtualbox do |parallels|
+          virtualbox.memory = settings["memory"]
+          virtualbox.cpus = settings["cpus"]
+        end
+    end
+
+    if config['provider'] == "vmware"
+        vagrant.vm.provider :vmware_desktop do |vmware|
+          vmware.vmx["memsize"] = settings["memory"]
+          vmware.vmx["numvcpus"] = settings["cpus"]
+        end
+    end
+
+    # Create host_vars for ansible inventory
     if settings.has_key?("host_vars")
       hashes = {}
 
       settings["host_vars"].each do |section, values|
         hash = {
+#           "#{section}" => "'#{values}'"
           "#{section}" => "'#{values.to_json}'"
         }
         hashes = hashes.deep_merge(hash)
@@ -94,33 +91,50 @@ Vagrant.configure("2") do |vagrant|
       end
     end
 
-    # provision new guest system(s)
-    if machine_id == machines.count
-      vagrant.vm.provision :ansible do |ansible|
+    # Setting up the guest system
+    vagrant.vm.define settings["hostname"] do |machine|
+      machine.vm.box = settings["box"]
+      machine.vm.box_version = settings["box_version"] ||= ">= 0"
+      machine.vm.hostname = settings["hostname"]
+      machine.vm.network "private_network", ip: settings["ip"]
+      machine.vm.synced_folder ".", "/vagrant", type: "nfs"
+
+      if settings.has_key?("forwarding")
+        settings["forwarding"].each do |name, port|
+          machine.vm.network "forwarded_port", guest: port["guest"], host: port["host"]
+        end
+      end
+
+      if settings.has_key?("shared_folders")
+        settings['shared_folders'].each do |i, folder|
+          if folder["sync_type"] == "nfs"
+            machine.vm.synced_folder "#{folder["source"]}", "/mnt/vagrant-#{i}", type: :nfs
+            machine.bindfs.bind_folder "/mnt/vagrant-#{i}", "#{folder["target"]}",
+              force_user:  folder["owner"]||="vagrant",
+              force_group: folder["group"]||="vagrant",
+              perms:       "u=rwX:g=rD:o=rD",
+              o:           "nonempty",
+              after:       :provision
+#         else
+#            vagrant.vm.synced_folder folder["source"], folder["target"], type: folder["sync_type"]
+          end
+        end
+      end
+
+      machine.vm.provision :ansible do |ansible|
+        ansible.compatibility_mode = "2.0"
         ansible.limit = "all"
         ansible.playbook = "./ansible/#{config["playbook"]}"
         ansible.groups = host_groups
-        ansible.host_vars = host_vars
         ansible.verbose = config["output"]
-
-        ansible.extra_vars = {
-          "php" => {
-            "version" => 5.6
-          }
-        }
-      end
-
-      if config["run_local"]
-        # Run local provisioning to populate inventory generated by vagrant
-        vagrant.vm.provision "ansible_local" do |ansible|
-          ansible.playbook = "./ansible/#{config["playbook_local"]}"
-          ansible.inventory_path = getInventoryPath("#{dir}/ansible.cfg")
-          ansible.install = true
-          ansible.limit = "localhost"
-          ansible.verbose = config["output"]
-        end
+        ansible.extra_vars = settings["host_vars"]
+#         ansible.extra_vars = begin
+#           YAML.load_file "./ansible/hosts/#{settings["hostname"]}.yml"
+#         rescue Errno::ENOENT
+#           {}
+#         end
       end
     end
 
   end # each
-end # vagranture
+end # configure

@@ -1,0 +1,36 @@
+---
+- name: add ppa repository
+  apt_repository:
+    repo: ppa:openjdk-r/ppa
+  when: ansible_distribution == "Ubuntu"
+
+- name: add jessie-backports deb repositories
+  apt_repository:
+    repo: 'deb http://http.debian.net/debian jessie-backports main'
+    state: present
+    update_cache: true
+  when: ansible_distribution_release == 'jessie'
+
+- set_fact:
+    release: ''
+
+- set_fact:
+    release: 'jessie-backports'
+  when: ansible_distribution_release == 'jessie'
+
+- name: install java-jdk and jre headless
+  apt:
+    name: '{{ item }}'
+    default_release: '{{ release }}'
+  with_items:
+    - ca-certificates-java
+    - openjdk-{{ openjdk.version }}-jdk
+    - openjdk-{{ openjdk.version }}-jre-headless
+  when: ansible_os_family == "Debian"
+
+- name: install java-jdk and jre headless
+  yum:
+    name: '{{ item }}'
+  with_items:
+    - java-1.{{ openjdk.version }}.0-openjdk
+  when: ansible_os_family == "RedHat"

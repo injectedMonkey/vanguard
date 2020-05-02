@@ -1,0 +1,7 @@
+---
+apache:
+  daemon: httpd
+  packages:
+    - httpd
+    - mod_ssl
+    - openssl

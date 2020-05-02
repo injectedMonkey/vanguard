@@ -1,0 +1,20 @@
+---
+- name: install pip
+  become: true
+  apt:
+    name: python-pip
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: install pip
+  become: true
+  yum:
+    name: python-pip
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: install pip packages
+  become: true
+  pip:
+    name: '{{ item }}'
+  with_items: '{{ pip.packages }}'

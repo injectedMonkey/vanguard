@@ -1,0 +1,6 @@
+---
+apache:
+  user: www-data
+  group: www-data
+  mods: []
+  hosts: []

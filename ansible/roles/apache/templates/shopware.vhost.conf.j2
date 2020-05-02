@@ -1,0 +1,50 @@
+<VirtualHost *:80>
+        ServerName {{ item.host_name }}
+
+        RewriteEngine On
+        RewriteCond %{HTTPS} !=on [NC]
+        RewriteRule ^/?(.*) https://%{SERVER_NAME}/$1 [R=301,L]
+
+        ErrorLog ${APACHE_LOG_DIR}/{{ item.host_name }}-error.log
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel  {{ item.log_level }}
+
+        CustomLog ${APACHE_LOG_DIR}/{{ item.host_name }}-access.log combined
+</VirtualHost>
+
+<VirtualHost *:443>
+        ServerName {{ item.host_name }}
+        DocumentRoot "{{ item.document_root }}"
+
+        #<Directory />
+        #    Options FollowSymLinks
+        #    AllowOverride None
+        #    Require all granted
+        #</Directory>
+
+        <Directory "{{ item.document_root }}">
+            Options FollowSymLinks
+            AllowOverride All
+            Require all granted
+            DirectoryIndex shopware.php
+
+            SetEnv SHOPWARE_ENV local
+        </Directory>
+
+        SSLEngine on
+        SSLCertificateFile    /etc/{{ apache.daemon }}/ssl/{{ item.host_name }}-selfsigned.crt
+        SSLCertificateKeyFile /etc/{{ apache.daemon }}/ssl/private/{{ item.host_name }}-selfsigned.key
+
+        ErrorLog ${APACHE_LOG_DIR}/{{ item.host_name }}-error.log
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel {{ item.log_level }}
+
+        ServerSignature Off
+        SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+        CustomLog ${APACHE_LOG_DIR}/{{ item.host_name }}-access.log combined
+</VirtualHost>

@@ -1,0 +1,35 @@
+---
+php:
+  webserver:
+    daemon: "httpd"
+  packages:
+    - php
+    - php-cli
+    - php-common
+    - php-devel
+    - php-fpm
+    - php-gd
+    - php-imap
+    - php-ldap
+    - php-mbstring
+    - php-opcache
+    - php-pdo
+    - php-pear
+    - php-pecl-apcu
+    - php-xml
+    - php-xmlrpc
+    - php-soap
+    - php-bcmath
+  ini_path:
+    - /etc
+#    - /etc/php.d
+  fpm:
+    daemon: php-fpm
+    conf_path: "/etc/fpm"
+    pool_conf_path: "/etc/php-fpm.d/www.conf"
+    pool_user: apache
+    pool_group: apache
+  apcu:
+    ini_path: /etc/php.d/40-apcu.ini
+  opcache:
+    ini_path: /etc/php.d/10-opcache.ini

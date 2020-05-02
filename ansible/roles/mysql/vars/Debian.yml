@@ -1,0 +1,21 @@
+mysql:
+  packages:
+    mariadb:
+      - mariadb-server
+      - mariadb-client
+      - python-mysqldb
+    mysql:
+      - mysql-server
+      - mysql-client
+      - python-mysqldb
+  socket: /var/run/mysqld/mysqld.sock
+  datadir: /var/lib/mysql
+  log_error: /var/log/mysql/error.log
+  pid_file: /var/run/mysqld/mysqld.pid
+  config_path: /etc/mysql/conf.d
+  mariadb:
+    deb_repo: http://mirror.23media.de/mariadb/repo/
+    key_id:
+      xenial: "0xF1656F24C74CD1D8"    # ubuntu 16.04
+      jessie: "0xcbcb082a1bb943db"    # debian 8
+      stretch: "0xF1656F24C74CD1D8"   # debian 9

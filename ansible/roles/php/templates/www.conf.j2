@@ -1,0 +1,12 @@
+[www]
+listen = {{ php.fpm.listen }}
+listen.allowed_clients = {{ php.fpm.listen_allowed_clients }}
+user = {{ php.fpm.pool_user }}
+group = {{ php.fpm.pool_group }}
+
+pm = dynamic
+pm.max_children = 50
+pm.start_servers = 5
+pm.min_spare_servers = 5
+pm.max_spare_servers = 5
+pm.max_requests = 500

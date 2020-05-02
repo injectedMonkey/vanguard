@@ -1,0 +1,102 @@
+---
+- name: include os specific variables
+  include_vars: "{{ ansible_os_family }}.yml"
+
+- name: install apache
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ apache.packages }}"
+  when: ansible_os_family == 'Debian'
+
+- name: install apache
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ apache.packages }}"
+  when: ansible_os_family == 'RedHat'
+
+- name: ensure apache2 is enabled
+  service:
+    name: "{{ apache.daemon }}"
+    state: started
+    enabled: yes
+
+- name: configure modules
+  apache2_module:
+    state: "{{ item.state | default('present') }}"
+    name: "{{ item.name | default(item) }}"
+    ignore_configcheck: true
+    force: true
+  with_items: "{{ apache.mods | list }}"
+  notify: restart apache2
+
+
+## TLS ######
+
+- name: ensure directories for cert files exists
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.permission }}"
+  with_items:
+    - {path: "/etc/{{ apache.daemon }}/ssl", permission: "0775" }
+    - {path: "/etc/{{ apache.daemon }}/ssl/private", permission: "0710" }
+
+- name: get stat for ssl certificates
+  stat:
+    path: "/etc/{{ apache.daemon }}/ssl/private/{{item.host_name}}-selfsigned.key"
+  register: apache_ssl_stat
+  with_items: "{{ apache.hosts }}"
+
+- name: generate self-signed tls certificates
+  shell: >
+    openssl req -x509 -nodes -days 3650 -newkey rsa:4096
+    -subj "/C=DE/ST=NRW/L=Duesseldorf/O=IT/CN={{item.item.host_name}}"
+    -keyout /etc/{{ apache.daemon }}/ssl/private/{{item.item.host_name}}-selfsigned.key
+    -out /etc/{{ apache.daemon }}/ssl/{{item.item.host_name}}-selfsigned.crt
+  when: item.stat is defined and item.stat.exists == false
+  loop: "{{ lookup('nested', apache.hosts, apache_ssl_stat.results) }}"
+
+#  when: apache_ssl_stat.stat.exists == false
+#  with_items: "{{ apache.hosts }}"
+  notify: restart apache2
+
+- name: set permissions for cert files
+  file:
+    path: "/etc/{{ apache.daemon }}/ssl/{{item.host_name}}-selfsigned.crt"
+    state: file
+    mode: 0644
+  with_items: "{{ apache.hosts }}"
+
+- name: set permissions for key files
+  file:
+    path: "/etc/{{ apache.daemon }}/ssl/private/{{item.host_name}}-selfsigned.key"
+    state: file
+    mode: 0640
+  with_items: "{{ apache.hosts }}"
+
+- name: ensure sites-available exists
+  file:
+    path: /etc/{{ apache.daemon }}/sites-available/
+    state: directory
+
+- name: ensure sites-enabled exists
+  file:
+    path: /etc/{{ apache.daemon }}/sites-enabled/
+    state: directory
+
+- name: copy vhost config
+  template:
+    src: "{{ item.vhost_template }}.vhost.conf.j2"
+    dest: /etc/{{ apache.daemon }}/sites-available/{{ item.host_name }}.conf
+  with_items: "{{ apache.hosts }}"
+  notify: restart apache2
+
+- name: link available site
+  file:
+    src: /etc/{{ apache.daemon }}/sites-available/{{ item.host_name }}.conf
+    dest: /etc/{{ apache.daemon }}/sites-enabled/{{ item.host_name }}.conf
+    state: link
+  with_items: "{{ apache.hosts }}"
+  notify: restart apache2
